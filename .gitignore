@@ -1,0 +1,21 @@
+# 第三方依赖（可随时重新下载）
+node_modules/
+
+# 编译输出（自动生成）
+out/
+
+# 打包产物（自动生成）
+release/
+
+# Claude 工作记录
+.claude/
+
+# 系统文件
+.DS_Store
+Thumbs.db
+*.log
+
+# 环境变量
+.env
+.env.local
+node_modules

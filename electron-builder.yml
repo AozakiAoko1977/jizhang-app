@@ -1,0 +1,21 @@
+appId: com.heima.jizhang
+productName: 黑马记账
+directories:
+  output: release
+files:
+  - out/**/*
+  - package.json
+asarUnpack:
+  - node_modules/sql.js/**/*
+electronDownload:
+  mirror: https://cdn.npmmirror.com/binaries/electron/
+win:
+  target:
+    - target: zip
+      arch:
+        - x64
+  signAndEditExecutable: false
+mac:
+  target:
+    - dmg
+  category: public.app-category.finance

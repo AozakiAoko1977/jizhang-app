@@ -1,0 +1,136 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ---- Sidebar ---- */
+.logo-container {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.logo-text {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  white-space: nowrap;
+}
+
+/* ---- Page Layout ---- */
+.page-container {
+  padding: 24px 28px;
+  height: calc(100vh - 56px);
+  overflow-y: auto;
+  background: #f0f2f5;
+}
+
+.page-title {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: #1a1a1a;
+}
+
+/* ---- Stat Cards ---- */
+.stat-card {
+  text-align: center;
+  transition: box-shadow 0.3s;
+}
+
+.stat-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.09);
+}
+
+.stat-card .stat-value {
+  font-size: 30px;
+  font-weight: 700;
+  color: #1677ff;
+  line-height: 1.2;
+}
+
+.stat-card .stat-label {
+  font-size: 13px;
+  color: #8c8c8c;
+  margin-top: 8px;
+}
+
+/* ---- Inline Form ---- */
+.inline-bill-form .ant-form-item {
+  margin-bottom: 8px;
+}
+
+/* ---- Quick Action Cards ---- */
+.quick-action-card {
+  text-align: center;
+  transition: all 0.3s;
+  border-radius: 8px;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* ---- Category Tags ---- */
+.category-tag {
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  padding: 4px 12px;
+}
+
+.category-tag:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #bfbfbf;
+}
+
+/* ---- Empty state ---- */
+.ant-empty-description {
+  color: #bfbfbf;
+}
+
+/* ---- Page transitions ---- */
+.ant-card {
+  transition: box-shadow 0.3s;
+}
+
+/* ---- Settings danger zone ---- */
+.danger-card .ant-card-head {
+  border-color: #ff4d4f !important;
+}

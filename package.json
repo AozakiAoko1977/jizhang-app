@@ -1,0 +1,35 @@
+{
+  "name": "heima-jizhang",
+  "version": "1.0.0",
+  "author": "黑马记账",
+  "description": "黑马记账 - 桌面端个人记账应用",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "node scripts/run.js dev",
+    "build": "node scripts/run.js build",
+    "preview": "node scripts/run.js preview",
+    "pack:win": "node scripts/run.js build && ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/ electron-builder --win",
+    "pack:mac": "node scripts/run.js build && ELECTRON_MIRROR=https://cdn.npmmirror.com/binaries/electron/ electron-builder --mac"
+  },
+  "dependencies": {
+    "@ant-design/icons": "^5.5.0",
+    "antd": "^5.22.0",
+    "dayjs": "^1.11.13",
+    "echarts": "^6.1.0",
+    "echarts-for-react": "^3.0.6",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "sql.js": "^1.14.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
