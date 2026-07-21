@@ -11,6 +11,7 @@ const CANVAS_SIZE = 400
 const GRID_COUNT = 20
 const CELL_SIZE = CANVAS_SIZE / GRID_COUNT
 const BASE_SPEED = 150 // 基础速度（毫秒/帧），越小越快
+const TOTAL_CELLS = GRID_COUNT * GRID_COUNT // 20×20 = 400
 
 // 方向
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'
@@ -32,16 +33,48 @@ const OPPOSITE: Record<Direction, Direction> = {
   RIGHT: 'LEFT'
 }
 
+// 键盘按键 → 方向映射（模块级别，避免每次按键重新创建）
+const KEY_MAP: Record<string, Direction> = {
+  ArrowUp: 'UP',
+  ArrowDown: 'DOWN',
+  ArrowLeft: 'LEFT',
+  ArrowRight: 'RIGHT',
+  w: 'UP',
+  W: 'UP',
+  s: 'DOWN',
+  S: 'DOWN',
+  a: 'LEFT',
+  A: 'LEFT',
+  d: 'RIGHT',
+  D: 'RIGHT'
+}
+
 // --- 工具函数 ---
 function randomFood(snake: Position[]): Position {
-  let pos: Position
-  do {
-    pos = {
+  // 蛇占满所有格子 → 返回原点（外部应检测为胜利）
+  if (snake.length >= TOTAL_CELLS) {
+    return { x: -1, y: -1 }
+  }
+  // 限制重试次数，防止快满时长时间循环
+  const maxRetries = TOTAL_CELLS * 3
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const pos: Position = {
       x: Math.floor(Math.random() * GRID_COUNT),
       y: Math.floor(Math.random() * GRID_COUNT)
     }
-  } while (snake.some((s) => s.x === pos.x && s.y === pos.y))
-  return pos
+    if (!snake.some((s) => s.x === pos.x && s.y === pos.y)) {
+      return pos
+    }
+  }
+  // 兜底：顺序扫描找第一个空位
+  for (let y = 0; y < GRID_COUNT; y++) {
+    for (let x = 0; x < GRID_COUNT; x++) {
+      if (!snake.some((s) => s.x === x && s.y === y)) {
+        return { x, y }
+      }
+    }
+  }
+  return { x: -1, y: -1 }
 }
 
 function getSpeed(score: number): number {
@@ -66,6 +99,7 @@ function SnakeGame(): JSX.Element {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const scoreRef = useRef(0)
   const stateRef = useRef<GameState>('idle')
+  const bestScoreRef = useRef(0)
 
   // --- 绘制 ---
   const draw = useCallback(() => {
@@ -73,6 +107,17 @@ function SnakeGame(): JSX.Element {
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+
+    // 高 DPI 支持
+    const dpr = window.devicePixelRatio || 1
+    const logicalSize = CANVAS_SIZE
+    if (canvas.width !== logicalSize * dpr || canvas.height !== logicalSize * dpr) {
+      canvas.width = logicalSize * dpr
+      canvas.height = logicalSize * dpr
+      canvas.style.width = logicalSize + 'px'
+      canvas.style.height = logicalSize + 'px'
+      ctx.scale(dpr, dpr)
+    }
 
     const snake = snakeRef.current
     const food = foodRef.current
@@ -113,7 +158,7 @@ function SnakeGame(): JSX.Element {
       const padding = 1
 
       if (i === 0) {
-        // 蛇头 — 亮绿色
+        // 蛇头
         ctx.fillStyle = '#00d2ff'
         ctx.shadowColor = '#00d2ff'
         ctx.shadowBlur = 6
@@ -185,51 +230,8 @@ function SnakeGame(): JSX.Element {
     }
   }, [])
 
-  // --- 游戏逻辑 ---
-  const tick = useCallback(() => {
-    const dir = nextDirRef.current
-    directionRef.current = dir
-    const vec = DIR_VECTORS[dir]
-    const head = snakeRef.current[0]
-    const newHead: Position = { x: head.x + vec.x, y: head.y + vec.y }
-
-    // 撞墙
-    if (newHead.x < 0 || newHead.x >= GRID_COUNT || newHead.y < 0 || newHead.y >= GRID_COUNT) {
-      gameOver()
-      return
-    }
-
-    // 撞自己（不算尾巴，因为尾巴会移动）
-    if (snakeRef.current.some((s) => s.x === newHead.x && s.y === newHead.y)) {
-      gameOver()
-      return
-    }
-
-    const ate = newHead.x === foodRef.current.x && newHead.y === foodRef.current.y
-    const newSnake = [newHead, ...snakeRef.current]
-    if (!ate) {
-      newSnake.pop() // 去掉尾巴
-    }
-
-    snakeRef.current = newSnake
-
-    if (ate) {
-      const s = scoreRef.current + 10
-      scoreRef.current = s
-      setScore(s)
-      foodRef.current = randomFood(newSnake)
-
-      // 调整速度
-      if (timerRef.current) {
-        clearInterval(timerRef.current)
-        timerRef.current = setInterval(tick, getSpeed(s))
-      }
-    }
-
-    draw()
-  }, [draw])
-
-  function gameOver(): void {
+  // --- 游戏结束 ---
+  const endGame = useCallback(() => {
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
@@ -237,23 +239,105 @@ function SnakeGame(): JSX.Element {
     stateRef.current = 'over'
     setGameState('over')
     const s = scoreRef.current
-    if (s > bestScore) {
+    const best = bestScoreRef.current
+    if (s > best) {
+      bestScoreRef.current = s
       setBestScore(s)
       message.success(`🎉 新纪录！${s} 分`)
     }
     draw()
-  }
+  }, [draw])
+
+  // --- 游戏逻辑 ---
+  const tick = useCallback(() => {
+    try {
+      const dir = nextDirRef.current
+      directionRef.current = dir
+      const vec = DIR_VECTORS[dir]
+      const head = snakeRef.current[0]
+      const newHead: Position = { x: head.x + vec.x, y: head.y + vec.y }
+
+      // 撞墙
+      if (newHead.x < 0 || newHead.x >= GRID_COUNT || newHead.y < 0 || newHead.y >= GRID_COUNT) {
+        endGame()
+        return
+      }
+
+      // 撞自己（排除尾部最后一段，因为没吃到食物时尾部会移除）
+      const willEat = newHead.x === foodRef.current.x && newHead.y === foodRef.current.y
+      const tailIndex = willEat ? snakeRef.current.length : snakeRef.current.length - 1
+      for (let i = 0; i < tailIndex; i++) {
+        const s = snakeRef.current[i]
+        if (s.x === newHead.x && s.y === newHead.y) {
+          endGame()
+          return
+        }
+      }
+
+      const ate = willEat
+      const newSnake = [newHead, ...snakeRef.current]
+      if (!ate) {
+        newSnake.pop() // 去掉尾巴
+      }
+
+      snakeRef.current = newSnake
+
+      if (ate) {
+        const s = scoreRef.current + 10
+        scoreRef.current = s
+        setScore(s)
+
+        // 胜利检查：蛇占满整个网格
+        if (newSnake.length >= TOTAL_CELLS) {
+          // 更新最高分后结束
+          if (s > bestScoreRef.current) {
+            bestScoreRef.current = s
+            setBestScore(s)
+          }
+          if (timerRef.current) {
+            clearInterval(timerRef.current)
+            timerRef.current = null
+          }
+          stateRef.current = 'over'
+          setGameState('over')
+          message.success(`🏆 完美通关！${s} 分`)
+          draw()
+          return
+        }
+
+        foodRef.current = randomFood(newSnake)
+
+        // 调整速度
+        if (timerRef.current) {
+          clearInterval(timerRef.current)
+          timerRef.current = setInterval(tick, getSpeed(s))
+        }
+      }
+
+      draw()
+    } catch (err) {
+      console.error('游戏循环出错：', err)
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+        timerRef.current = null
+      }
+      stateRef.current = 'over'
+      setGameState('over')
+      draw()
+    }
+  }, [draw, endGame])
 
   // --- 控制方法 ---
-  function startGame(): void {
+  const startGame = useCallback((initialDirection?: Direction): void => {
     const initSnake: Position[] = [
       { x: 10, y: 10 },
       { x: 9, y: 10 },
       { x: 8, y: 10 }
     ]
+    const dir = initialDirection || 'RIGHT'
     snakeRef.current = initSnake
-    directionRef.current = 'RIGHT'
-    nextDirRef.current = 'RIGHT'
+    directionRef.current = dir
+    nextDirRef.current = dir
     foodRef.current = randomFood(initSnake)
     scoreRef.current = 0
     setScore(0)
@@ -263,9 +347,9 @@ function SnakeGame(): JSX.Element {
 
     if (timerRef.current) clearInterval(timerRef.current)
     timerRef.current = setInterval(tick, BASE_SPEED)
-  }
+  }, [draw, tick])
 
-  function togglePause(): void {
+  const togglePause = useCallback((): void => {
     if (stateRef.current === 'playing') {
       if (timerRef.current) clearInterval(timerRef.current)
       timerRef.current = null
@@ -275,28 +359,49 @@ function SnakeGame(): JSX.Element {
     } else if (stateRef.current === 'paused') {
       stateRef.current = 'playing'
       setGameState('playing')
+      draw()
       timerRef.current = setInterval(tick, getSpeed(scoreRef.current))
     }
-  }
+  }, [draw, tick])
+
+  // --- 初始绘制（组件挂载时显示空闲画面）---
+  useEffect(() => {
+    draw()
+  }, [draw])
+
+  // --- Canvas 上下文丢失处理 ---
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    function handleContextLost(e: Event): void {
+      e.preventDefault()
+      // 暂停游戏，防止状态继续变化
+      if (stateRef.current === 'playing') {
+        if (timerRef.current) clearInterval(timerRef.current)
+        timerRef.current = null
+        stateRef.current = 'paused'
+        setGameState('paused')
+      }
+    }
+
+    function handleContextRestored(): void {
+      // 上下文恢复后重绘
+      draw()
+    }
+
+    canvas.addEventListener('contextlost', handleContextLost)
+    canvas.addEventListener('contextrestored', handleContextRestored)
+    return () => {
+      canvas.removeEventListener('contextlost', handleContextLost)
+      canvas.removeEventListener('contextrestored', handleContextRestored)
+    }
+  }, [draw])
 
   // --- 键盘控制 ---
   useEffect(() => {
-    function handleKey(e: KeyboardEvent): void {
+    const handleKey = (e: KeyboardEvent): void => {
       const state = stateRef.current
-      const keyMap: Record<string, Direction> = {
-        ArrowUp: 'UP',
-        ArrowDown: 'DOWN',
-        ArrowLeft: 'LEFT',
-        ArrowRight: 'RIGHT',
-        w: 'UP',
-        W: 'UP',
-        s: 'DOWN',
-        S: 'DOWN',
-        a: 'LEFT',
-        A: 'LEFT',
-        d: 'RIGHT',
-        D: 'RIGHT'
-      }
 
       // 空格：开始/暂停
       if (e.key === ' ') {
@@ -311,13 +416,13 @@ function SnakeGame(): JSX.Element {
         }
       }
 
-      const dir = keyMap[e.key]
+      const dir = KEY_MAP[e.key]
       if (!dir) return
       e.preventDefault()
 
       if (state === 'idle' || state === 'over') {
-        nextDirRef.current = dir
-        startGame()
+        // 传递用户选择的初始方向
+        startGame(dir)
         return
       }
 
@@ -331,7 +436,7 @@ function SnakeGame(): JSX.Element {
 
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [])
+  }, [startGame, togglePause])
 
   // 清理
   useEffect(() => {
@@ -346,14 +451,7 @@ function SnakeGame(): JSX.Element {
 
       <Card style={{ maxWidth: 460, margin: '0 auto' }}>
         {/* 分数栏 */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: 16
-          }}
-        >
+        <div style={SCORE_BAR_STYLE}>
           <Space size="large">
             <span>
               得分：<Tag color="blue" style={{ fontSize: 16 }}>{score}</Tag>
@@ -369,20 +467,14 @@ function SnakeGame(): JSX.Element {
           ref={canvasRef}
           width={CANVAS_SIZE}
           height={CANVAS_SIZE}
-          style={{
-            display: 'block',
-            borderRadius: 8,
-            border: '2px solid #1677ff',
-            margin: '0 auto',
-            maxWidth: '100%'
-          }}
+          style={CANVAS_STYLE}
         />
 
         {/* 按钮 */}
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
+        <div style={BUTTON_ROW_STYLE}>
           <Space size={12}>
             {gameState === 'idle' || gameState === 'over' ? (
-              <Button type="primary" icon={<PlayCircleOutlined />} onClick={startGame} size="large">
+              <Button type="primary" icon={<PlayCircleOutlined />} onClick={() => startGame()} size="large">
                 {gameState === 'over' ? '再来一局' : '开始游戏'}
               </Button>
             ) : (
@@ -394,26 +486,49 @@ function SnakeGame(): JSX.Element {
                 {gameState === 'paused' ? '继续' : '暂停'}
               </Button>
             )}
-            <Button icon={<ReloadOutlined />} onClick={startGame} size="large">
-              重新开始
-            </Button>
+            {gameState !== 'idle' && (
+              <Button icon={<ReloadOutlined />} onClick={() => startGame()} size="large">
+                重新开始
+              </Button>
+            )}
           </Space>
         </div>
 
         {/* 操作说明 */}
-        <div
-          style={{
-            textAlign: 'center',
-            marginTop: 12,
-            color: '#8c8c8c',
-            fontSize: 12
-          }}
-        >
+        <div style={HELP_TEXT_STYLE}>
           方向键 ↑↓←→ 或 WASD 控制方向 ｜ 空格键 开始/暂停
         </div>
       </Card>
     </div>
   )
+}
+
+// 模块级别样式常量，避免每次渲染重新创建
+const SCORE_BAR_STYLE: React.CSSProperties = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  marginBottom: 16
+}
+
+const CANVAS_STYLE: React.CSSProperties = {
+  display: 'block',
+  borderRadius: 8,
+  border: '2px solid #1677ff',
+  margin: '0 auto',
+  maxWidth: '100%'
+}
+
+const BUTTON_ROW_STYLE: React.CSSProperties = {
+  textAlign: 'center',
+  marginTop: 16
+}
+
+const HELP_TEXT_STYLE: React.CSSProperties = {
+  textAlign: 'center',
+  marginTop: 12,
+  color: '#8c8c8c',
+  fontSize: 12
 }
 
 export default SnakeGame
