@@ -80,7 +80,7 @@ function createWindow(): void {
     title: '黑马记账',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
-      sandbox: false          // ⚠️ TODO: 改为 true（安全加固），preload 脚本兼容沙箱模式
+      sandbox: true           // ✅ 沙箱已启用，preload 使用 contextBridge 暴露 API，兼容沙箱模式
     }
   })
 
