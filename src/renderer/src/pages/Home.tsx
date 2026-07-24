@@ -1,3 +1,13 @@
+/**
+ * Home.tsx -- 首页概览
+ * ====================================
+ *
+ * 用户打开应用后看到的第一个页面，相当于仪表盘。
+ * 展示：今日支出、本月支出、全部笔数、快捷入口、最近账单。
+ *
+ * 使用 Promise.all 同时请求三份数据，提高加载速度。
+ */
+
 import { useState, useEffect } from 'react'
 import { Card, Row, Col, Table, Tag } from 'antd'
 import { useNavigate } from 'react-router-dom'
@@ -5,29 +15,50 @@ import { EditOutlined, AppstoreOutlined, PieChartOutlined } from '@ant-design/ic
 import type { BillRecord } from '../types/electron'
 import dayjs from 'dayjs'
 
+/**
+ * Home 组件 -- 首页概览
+ * 分为三个区域：顶部统计卡片、中部快捷入口、底部最近账单。
+ */
 function Home(): JSX.Element {
+  // useNavigate 是路由导航功能，类似于网页超链接
   const navigate = useNavigate()
+  /**
+   * 四个核心状态：todayTotal=今日支出 monthTotal=本月支出
+   * recentBills=最近10条账单 loading=加载状态
+   */
   const [todayTotal, setTodayTotal] = useState(0)
   const [monthTotal, setMonthTotal] = useState(0)
   const [recentBills, setRecentBills] = useState<BillRecord[]>([])
   const [loading, setLoading] = useState(true)
 
+  /**
+   * useEffect -- 页面加载时自动执行
+   * 空数组[]=只在第一次打开时运行，Promise.all并行加载提高速度。
+   */
   useEffect(() => {
+    /** load函数 -- 并行加载今日总额、本月总额、全部账单 */
     const load = async (): Promise<void> => {
       const now = dayjs()
+      // Promise.all 让三个请求同时发出
       const [today, month, bills] = await Promise.all([
         window.api.getTodayTotal(),
+        // dayjs的month()从0开始，0=1月，所以要+1
         window.api.getMonthTotal(now.year(), now.month() + 1),
         window.api.getBills()
       ])
       setTodayTotal(today)
       setMonthTotal(month)
+      // 首页只展示最近10条
       setRecentBills(bills.slice(0, 10))
       setLoading(false)
     }
     load()
-  }, [])
+  }, []) // 空依赖=只执行一次
 
+  /**
+   * columns -- 表格列定义（日期、分类、金额、备注）
+   * 定义在组件内部是为了访问 navigate 闭包变量。
+   */
   const columns = [
     {
       title: '日期',
@@ -50,6 +81,7 @@ function Home(): JSX.Element {
       title: '金额',
       dataIndex: 'amount',
       key: 'amount',
+      // align:'right' 让金额右对齐
       align: 'right' as const,
       render: (v: number) => (
         <span style={{ fontWeight: 600, color: '#ff4d4f' }}>¥ {v.toFixed(2)}</span>
@@ -59,6 +91,7 @@ function Home(): JSX.Element {
       title: '备注',
       dataIndex: 'note',
       key: 'note',
+      // ellipsis 过长自动省略号；备注为空显示占位符
       ellipsis: true,
       render: (v: string) => v || '-'
     }

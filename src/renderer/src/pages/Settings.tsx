@@ -1,3 +1,14 @@
+/**
+ * Settings.tsx -- 设置页面
+ * ====================================
+ *
+ * 这个文件是应用的设置中心，负责数据的导入导出和安全管理。
+ * 主要功能包括：导出 CSV、备份数据库、恢复数据、清空数据。
+ *
+ * 所有数据存储在用户电脑本地，不会上传到任何服务器。
+ * 建议定期备份以防数据丢失。
+ */
+
 import { useState } from 'react'
 import {
   Card,
@@ -19,9 +30,26 @@ import {
 
 const { Text } = Typography
 
+/**
+ * Settings 组件 -- 应用设置页面
+ *
+ * 页面分为四个卡片区域：数据导出、备份恢复、危险操作、关于信息。
+ * 每个操作都有二次确认，防止用户误操作。
+ * 危险操作使用红色主题，从视觉上警示用户。
+ */
 function Settings(): JSX.Element {
+  /**
+   * loading 状态 -- 记录当前正在执行的操作
+   * 用字符串而不是布尔值，因为有两个按钮可能同时显示加载状态。
+   * null=无操作 'csv'=导出中 'backup'=备份中
+   */
   const [loading, setLoading] = useState<string | null>(null)
 
+  /**
+   * handleExportCSV -- 导出账单为 CSV 文件
+   * CSV 是通用表格格式，可用 Excel、WPS 等打开。
+   * 执行：设置 loading -> 调用后端 API -> 显示结果路径
+   */
   const handleExportCSV = async (): Promise<void> => {
     setLoading('csv')
     const result = await window.api.exportCSV()
@@ -31,6 +59,11 @@ function Settings(): JSX.Element {
     }
   }
 
+  /**
+   * handleBackup -- 备份整个数据库
+   * 把当前数据库文件复制一份存到用户指定位置。
+   * 建议：重装系统前、换电脑前、定期备份。
+   */
   const handleBackup = async (): Promise<void> => {
     setLoading('backup')
     const result = await window.api.backupDatabase()
@@ -40,6 +73,11 @@ function Settings(): JSX.Element {
     }
   }
 
+  /**
+   * handleRestore -- 从备份文件恢复数据
+   * 用备份文件替换当前数据库，会覆盖当前所有数据。
+   * 恢复后需重启应用以刷新数据。
+   */
   const handleRestore = (): void => {
     Modal.confirm({
       title: '确认恢复数据',
@@ -67,12 +105,19 @@ function Settings(): JSX.Element {
     })
   }
 
+  /**
+   * handleClear -- 清空所有数据（最危险的操作）
+   * 永久删除所有账单和分类数据，不可撤销。
+   * 安全措施：二次确认、红色按钮、建议先备份。
+   */
   const handleClear = (): void => {
     Modal.confirm({
       title: '确认清空数据',
+      // ExclamationCircleOutlined 黄色感叹号图标=重要操作提示
       icon: <ExclamationCircleOutlined />,
       content: (
         <div>
+          {/* type="danger" 将文字显示为红色 */}
           <Text type="danger">
             此操作将<Text strong>永久删除</Text>所有账单数据，不可恢复！
           </Text>

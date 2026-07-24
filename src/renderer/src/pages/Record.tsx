@@ -1,3 +1,14 @@
+/**
+ * Record.tsx -- 记账页面
+ * ====================================
+ *
+ * 用户最常使用的页面，负责记账的核心操作：新增、编辑、删除账单。
+ * 分为上下两部分：上部是记账表单，下部是全部账单列表。
+ *
+ * 分类采用两级联动选择：先选大类，再选小类。
+ * 编辑模式下表单预填已有数据，保存后会更新对应账单。
+ */
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Card,
@@ -16,6 +27,9 @@ import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { BillRecord, CategoryGrouped } from '../types/electron'
 import dayjs from 'dayjs'
 
+/**
+ * Record 组件 -- 记账页面，负责账单的增删改查
+ */
 function Record(): JSX.Element {
   const [form] = Form.useForm()
   const [categories, setCategories] = useState<CategoryGrouped[]>([])
@@ -24,6 +38,10 @@ function Record(): JSX.Element {
   const [loading, setLoading] = useState(false)
   const [selectedL1, setSelectedL1] = useState<string | undefined>(undefined)
 
+  /**
+   * loadData -- 从数据库加载分类列表和账单列表
+   * useCallback 缓存函数避免每次渲染都创建新函数。
+   */
   const loadData = useCallback(async () => {
     const [cats, billList] = await Promise.all([
       window.api.getCategoriesGrouped(),
@@ -37,11 +55,18 @@ function Record(): JSX.Element {
     loadData()
   }, [loadData])
 
+  // l2Options -- 根据选中大类动态计算二级分类选项
+  // 如果没选大类则返回空数组，二级分类下拉框为空
   const l2Options = selectedL1
     ? categories.find((c) => c.l1 === selectedL1)?.l2.map((name) => ({ label: name, value: name })) ??
       []
     : []
 
+  /**
+   * handleSubmit -- 提交表单（新增或编辑账单）
+   * 通过 editingId 判断：null=新增(addBill) 非null=编辑(updateBill)
+   * 提交成功后重置表单并重新加载数据。
+   */
   const handleSubmit = async (values: {
     amount: number
     category_l1: string
@@ -79,6 +104,9 @@ function Record(): JSX.Element {
     }
   }
 
+  /**
+   * handleEdit -- 将选中账单的数据填入表单，进入编辑模式
+   */
   const handleEdit = (bill: BillRecord): void => {
     setEditingId(bill.id)
     setSelectedL1(bill.category_l1)
@@ -91,12 +119,18 @@ function Record(): JSX.Element {
     })
   }
 
+  /**
+   * handleCancelEdit -- 取消编辑，清空表单并退出编辑模式
+   */
   const handleCancelEdit = (): void => {
     setEditingId(null)
     setSelectedL1(undefined)
     form.resetFields()
   }
 
+  /**
+   * handleDelete -- 删除账单（需二次确认）
+   */
   const handleDelete = async (id: number): Promise<void> => {
     await window.api.deleteBill(id)
     message.success('账单已删除')

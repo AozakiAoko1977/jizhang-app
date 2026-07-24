@@ -1,3 +1,14 @@
+/**
+ * Category.tsx -- 分类管理页面
+ * ====================================
+ *
+ * 管理记账的两级分类体系（大类->小类），支持查看、新增、编辑、删除分类。
+ *
+ * 分类采用两级结构：一级大类（餐饮、交通...）包含二级小类（三餐、外卖...）。
+ * 删除分类时后端检查该分类下是否有账单，有则不允许删除。
+ * 编辑分类时大类名称不可修改，防止数据混乱。
+ */
+
 import { useState, useEffect, useCallback } from 'react'
 import {
   Card,
@@ -16,6 +27,9 @@ import {
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons'
 import type { CategoryGrouped, CategoryRecord } from '../types/electron'
 
+/**
+ * Category 组件 -- 分类管理页面
+ */
 function Category(): JSX.Element {
   const [categories, setCategories] = useState<CategoryGrouped[]>([])
   const [allCategories, setAllCategories] = useState<CategoryRecord[]>([])
@@ -26,6 +40,10 @@ function Category(): JSX.Element {
   const [form] = Form.useForm()
   const [newL1, setNewL1] = useState<string | undefined>(undefined)
 
+  /**
+   * loadData -- 同时加载三种格式的分类数据：
+   * grouped=按大类分组(卡片展示) all=全部记录(查找) l1s=大类名称(下拉)
+   */
   const loadData = useCallback(async () => {
     const [grouped, all, l1s] = await Promise.all([
       window.api.getCategoriesGrouped(),
@@ -41,7 +59,9 @@ function Category(): JSX.Element {
     loadData()
   }, [loadData])
 
-  // Add new category
+  /**
+   * handleAdd -- 打开新增分类弹窗，清空表单
+   */
   const handleAdd = (): void => {
     setEditingCat(null)
     setNewL1(undefined)
@@ -49,7 +69,9 @@ function Category(): JSX.Element {
     setModalOpen(true)
   }
 
-  // Edit existing category
+  /**
+   * handleEdit -- 打开编辑分类弹窗，预填选中分类的数据
+   */
   const handleEdit = (cat: CategoryRecord): void => {
     setEditingCat(cat)
     setNewL1(cat.name_l1)
@@ -60,7 +82,9 @@ function Category(): JSX.Element {
     setModalOpen(true)
   }
 
-  // Delete category
+  /**
+   * handleDelete -- 删除分类，后端检查是否有账单，有则提示不能删除
+   */
   const handleDelete = async (cat: CategoryRecord): Promise<void> => {
     const result = await window.api.deleteCategory({
       id: cat.id,
@@ -75,7 +99,11 @@ function Category(): JSX.Element {
     }
   }
 
-  // Submit form
+  /**
+   * handleSubmit -- 提交分类表单
+   * editingCat=null时新增(addCategory)，否则编辑(updateCategory需传新旧值)
+   * 编辑时传oldL1/oldL2和newL1/newL2，后端据此找到原记录并更新。
+   */
   const handleSubmit = async (values: {
     name_l1: string
     name_l2: string
@@ -109,7 +137,9 @@ function Category(): JSX.Element {
     }
   }
 
-  // Build grouped data for display
+  /**
+   * groupedColumns -- 以卡片形式展示每个大类及其下的小类标签
+   */
   const groupedColumns = [
     {
       title: '一级分类',
